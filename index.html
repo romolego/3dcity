@@ -335,10 +335,9 @@
   </div>
 </div>
 
-<script type="module">
-  import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-  import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script>
   let renderer, scene, camera, controls;
   let cityGroup, cars = [], trees = [], buildings = [];
   let lastTime = performance.now();
@@ -381,8 +380,6 @@
     btnSpeed4: document.getElementById("btn-speed-4")
   };
 
-  main();
-
   function main() {
     initRenderer();
     initScene();
@@ -403,7 +400,7 @@
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
@@ -428,7 +425,7 @@
     camera.position.set(230, 220, 230);
     camera.lookAt(0, 0, 0);
 
-    controls = new OrbitControls(camera, renderer.domElement);
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
     controls.minDistance = 80;
@@ -748,7 +745,11 @@
     ui.timeMode.textContent = isDay ? "DAY" : "NIGHT";
     ui.timeMode.classList.toggle("day", isDay);
     ui.timeMode.classList.toggle("night", !isDay);
+  }
 
+  function updateLights() {
+    const hours = Math.floor(simClock.minutesTotal / 60);
+    const minutes = Math.floor(simClock.minutesTotal % 60);
     const t = computeDayNightFactor(hours, minutes);
     applyLightingFactor(t);
   }
@@ -805,6 +806,8 @@
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
   }
+
+  main();
 </script>
 </body>
 </html>
