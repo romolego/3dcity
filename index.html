@@ -1,1 +1,811 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>Neon Metropolis — 3D City Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    :root {
+      --bg: #020617;
+      --fg: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent-soft: rgba(34,211,238,0.18);
+      --panel: rgba(15,23,42,0.92);
+      --border: rgba(148,163,184,0.35);
+      --danger: #f97373;
+      --ok: #4ade80;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #020617 100%);
+      color: var(--fg);
+    }
+
+    body {
+      position: relative;
+    }
+
+    #app-frame {
+      position: absolute;
+      inset: 0;
+      margin: 12px;
+      border-radius: 24px;
+      padding: 2px;
+      background: linear-gradient(135deg, #22d3ee, #6366f1, #ec4899);
+      box-shadow:
+        0 0 40px rgba(56,189,248,0.25),
+        0 0 120px rgba(129,140,248,0.25);
+      overflow: hidden;
+    }
+
+    #app-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.12) 0, transparent 55%),
+        radial-gradient(circle at bottom right, rgba(236,72,153,0.18) 0, transparent 60%),
+        #020617;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      font-size: 13px;
+    }
+
+    .panel {
+      position: absolute;
+      min-width: 180px;
+      max-width: 260px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 10px 30px rgba(15,23,42,0.85),
+        0 0 20px rgba(34,211,238,0.15);
+      backdrop-filter: blur(10px);
+      pointer-events: auto;
+    }
+
+    .panel h2 {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+    }
+
+    .stat-value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    #panel-stats {
+      top: 14px;
+      right: 14px;
+    }
+
+    #panel-time {
+      left: 14px;
+      bottom: 14px;
+    }
+
+    #panel-controls {
+      right: 14px;
+      bottom: 14px;
+      max-width: 280px;
+    }
+
+    .time-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .time-main {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+    }
+
+    .time-mode {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .time-mode.day {
+      color: var(--ok);
+      border-color: rgba(74,222,128,0.65);
+      background: rgba(22,163,74,0.1);
+    }
+
+    .time-mode.night {
+      color: #38bdf8;
+      border-color: rgba(56,189,248,0.7);
+      background: rgba(30,64,175,0.45);
+    }
+
+    .time-caption {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.5);
+      background: rgba(15,23,42,0.9);
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .chip strong {
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    button {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: radial-gradient(circle at top, rgba(148,163,184,0.15), rgba(15,23,42,0.95));
+      color: var(--fg);
+      font-size: 12px;
+      padding: 6px 12px;
+      cursor: pointer;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    button span.dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--muted);
+      box-shadow: 0 0 10px rgba(148,163,184,0.7);
+    }
+
+    button.primary {
+      border-color: rgba(34,211,238,0.9);
+      background: radial-gradient(circle at top, rgba(34,211,238,0.22), rgba(15,23,42,0.96));
+      box-shadow: 0 0 16px rgba(34,211,238,0.4);
+    }
+
+    button.primary span.dot {
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(34,211,238,0.8);
+    }
+
+    button.danger {
+      border-color: rgba(248,113,113,0.9);
+      background: radial-gradient(circle at top, rgba(248,113,113,0.18), rgba(15,23,42,0.96));
+      box-shadow: 0 0 16px rgba(248,113,113,0.4);
+    }
+
+    button.danger span.dot {
+      background: var(--danger);
+      box-shadow: 0 0 16px rgba(248,113,113,0.8);
+    }
+
+    button.tiny {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    #status-line {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      opacity: 0.85;
+    }
+
+    @media (max-width: 768px) {
+      #panel-stats, #panel-controls {
+        max-width: 210px;
+      }
+      .time-main {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="app-frame">
+  <div id="app-inner">
+    <div id="hud">
+      <div id="panel-stats" class="panel">
+        <h2>CITY STATS</h2>
+        <div class="stats-grid">
+          <div class="stat-label">Здания</div>
+          <div class="stat-value" id="stat-buildings">0</div>
+          <div class="stat-label">Машины</div>
+          <div class="stat-value" id="stat-cars">0</div>
+          <div class="stat-label">Деревья</div>
+          <div class="stat-value" id="stat-trees">0</div>
+        </div>
+      </div>
+
+      <div id="panel-time" class="panel">
+        <h2>CITY TIME</h2>
+        <div class="time-row">
+          <div class="time-main" id="time-label">00:00</div>
+          <div class="time-mode day" id="time-mode">DAY</div>
+        </div>
+        <div class="time-caption">
+          Симулируемые сутки прокручиваются быстрее реального времени.
+        </div>
+        <div class="chip-row">
+          <div class="chip">Speed ×<strong id="chip-speed">1.0</strong></div>
+          <div class="chip">UTC <strong id="chip-day">Day 1</strong></div>
+        </div>
+      </div>
+
+      <div id="panel-controls" class="panel">
+        <h2>CITY CONTROL</h2>
+        <div class="controls-row">
+          <button id="btn-play" class="primary">
+            <span class="dot"></span>
+            Запуск
+          </button>
+          <button id="btn-pause" class="danger">
+            <span class="dot"></span>
+            Пауза
+          </button>
+        </div>
+        <div class="controls-row" style="margin-top:8px;">
+          <button id="btn-speed-1" class="tiny">
+            <span class="dot"></span>
+            Speed ×1
+          </button>
+          <button id="btn-speed-2" class="tiny">
+            <span class="dot"></span>
+            Speed ×2
+          </button>
+          <button id="btn-speed-4" class="tiny">
+            <span class="dot"></span>
+            Speed ×4
+          </button>
+        </div>
+        <div id="status-line">Инициализация города…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+  import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+  let renderer, scene, camera, controls;
+  let cityGroup, cars = [], trees = [], buildings = [];
+  let lastTime = performance.now();
+  let paused = false;
+  let timeScale = 1.0;
+
+  const simClock = {
+    minutesTotal: 8 * 60, // старт в 08:00
+    dayIndex: 1
+  };
+
+  const world = {
+    citySize: 400,
+    gridBlocks: 10,
+    roadWidth: 7,
+    carCount: 55,
+    treeDensity: 0.4
+  };
+
+  const lights = {
+    ambientDay: null,
+    ambientNight: null,
+    sunLight: null,
+    neonLight: null
+  };
+
+  const ui = {
+    statBuildings: document.getElementById("stat-buildings"),
+    statCars: document.getElementById("stat-cars"),
+    statTrees: document.getElementById("stat-trees"),
+    timeLabel: document.getElementById("time-label"),
+    timeMode: document.getElementById("time-mode"),
+    chipSpeed: document.getElementById("chip-speed"),
+    chipDay: document.getElementById("chip-day"),
+    statusLine: document.getElementById("status-line"),
+    btnPlay: document.getElementById("btn-play"),
+    btnPause: document.getElementById("btn-pause"),
+    btnSpeed1: document.getElementById("btn-speed-1"),
+    btnSpeed2: document.getElementById("btn-speed-2"),
+    btnSpeed4: document.getElementById("btn-speed-4")
+  };
+
+  main();
+
+  function main() {
+    initRenderer();
+    initScene();
+    initCamera();
+    initLights();
+    buildCity();
+    buildCars();
+    updateStatsUI();
+    initControls();
+    window.addEventListener("resize", onWindowResize);
+    lastTime = performance.now();
+    renderer.setAnimationLoop(loop);
+    ui.statusLine.textContent = "Город запущен. Управляйте камерой мышью.";
+  }
+
+  function initRenderer() {
+    const container = document.getElementById("app-inner");
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.appendChild(renderer.domElement);
+  }
+
+  function initScene() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    cityGroup = new THREE.Group();
+    scene.add(cityGroup);
+
+    // Неоновая дымка
+    const fogColor = new THREE.Color(0x020617);
+    scene.fog = new THREE.FogExp2(fogColor, 0.006);
+  }
+
+  function initCamera() {
+    const container = document.getElementById("app-inner");
+    const aspect = container.clientWidth / container.clientHeight;
+    camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+    camera.position.set(230, 220, 230);
+    camera.lookAt(0, 0, 0);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.minDistance = 80;
+    controls.maxDistance = 420;
+    controls.maxPolarAngle = Math.PI * 0.49;
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }
+
+  function initLights() {
+    lights.ambientDay = new THREE.AmbientLight(0xffffff, 0.85);
+    lights.ambientNight = new THREE.AmbientLight(0x0f172a, 0.0); // начнём с нуля, будем плавно поднимать ночью
+    scene.add(lights.ambientDay);
+    scene.add(lights.ambientNight);
+
+    lights.sunLight = new THREE.DirectionalLight(0xfff3d1, 1.0);
+    lights.sunLight.position.set(150, 260, 110);
+    lights.sunLight.castShadow = false;
+    scene.add(lights.sunLight);
+
+    lights.neonLight = new THREE.DirectionalLight(0x60a5fa, 0.4);
+    lights.neonLight.position.set(-180, 200, -160);
+    scene.add(lights.neonLight);
+  }
+
+  function buildCity() {
+    const { citySize, gridBlocks, roadWidth, treeDensity } = world;
+    const half = citySize / 2;
+
+    // Основание города
+    const groundGeo = new THREE.PlaneGeometry(citySize * 1.5, citySize * 1.5, 1, 1);
+    const groundMat = new THREE.MeshBasicMaterial({
+      color: 0x020617
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    cityGroup.add(ground);
+
+    const blockSize = citySize / gridBlocks;
+    const roadMat = new THREE.MeshStandardMaterial({
+      color: 0x020617,
+      roughness: 0.2,
+      metalness: 0.9
+    });
+
+    const laneMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const roadLinesX = [];
+    const roadLinesZ = [];
+
+    // Вертикальные дороги (вдоль оси Z)
+    const vRoadGeo = new THREE.BoxGeometry(roadWidth, 0.2, citySize);
+    for (let i = 0; i <= gridBlocks; i++) {
+      const x = -half + i * blockSize;
+      const road = new THREE.Mesh(vRoadGeo, roadMat);
+      road.position.set(x, 0.01, 0);
+      cityGroup.add(road);
+      roadLinesX.push(x);
+
+      // Неоновые полосы по центру дороги
+      const laneGeo = new THREE.BoxGeometry(0.4, 0.25, citySize);
+      const lane = new THREE.Mesh(laneGeo, laneMat);
+      lane.position.set(x, 0.03, 0);
+      cityGroup.add(lane);
+    }
+
+    // Горизонтальные дороги (вдоль оси X)
+    const hRoadGeo = new THREE.BoxGeometry(citySize, 0.2, roadWidth);
+    for (let j = 0; j <= gridBlocks; j++) {
+      const z = -half + j * blockSize;
+      const road = new THREE.Mesh(hRoadGeo, roadMat);
+      road.position.set(0, 0.01, z);
+      cityGroup.add(road);
+      roadLinesZ.push(z);
+
+      const laneGeo = new THREE.BoxGeometry(citySize, 0.25, 0.4);
+      const lane = new THREE.Mesh(laneGeo, laneMat);
+      lane.position.set(0, 0.03, z);
+      cityGroup.add(lane);
+    }
+
+    // Процедурные здания
+    const buildingColors = [0x38bdf8, 0x6366f1, 0xa855f7, 0xf97316, 0x22c55e];
+    const emissiveColors = [0x0ea5e9, 0x4f46e5, 0xdb2777];
+
+    for (let i = 0; i < gridBlocks; i++) {
+      for (let j = 0; j < gridBlocks; j++) {
+        const cx = -half + (i + 0.5) * blockSize;
+        const cz = -half + (j + 0.5) * blockSize;
+
+        const buildingsInBlock = 1 + Math.floor(Math.random() * 3);
+        for (let k = 0; k < buildingsInBlock; k++) {
+          const w = blockSize * (0.18 + Math.random() * 0.25);
+          const d = blockSize * (0.18 + Math.random() * 0.25);
+          const h = 18 + Math.random() * 90;
+
+          const offsetX = (Math.random() - 0.5) * (blockSize * 0.5);
+          const offsetZ = (Math.random() - 0.5) * (blockSize * 0.5);
+
+          const color = buildingColors[Math.floor(Math.random() * buildingColors.length)];
+          const emissive = emissiveColors[Math.floor(Math.random() * emissiveColors.length)];
+
+          const geo = new THREE.BoxGeometry(w, h, d);
+          const mat = new THREE.MeshStandardMaterial({
+            color,
+            metalness: 0.9,
+            roughness: 0.25,
+            emissive,
+            emissiveIntensity: 0.18
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(cx + offsetX, h / 2, cz + offsetZ);
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
+          cityGroup.add(mesh);
+          buildings.push(mesh);
+        }
+
+        // Деревья вокруг кварталов
+        const treesHere = Math.random() < treeDensity ? 1 + Math.floor(Math.random() * 4) : 0;
+        for (let t = 0; t < treesHere; t++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = blockSize * 0.45;
+          const tx = cx + Math.cos(angle) * radius;
+          const tz = cz + Math.sin(angle) * radius;
+          const tree = createTree();
+          tree.position.set(tx, 0, tz);
+          cityGroup.add(tree);
+          trees.push(tree);
+        }
+      }
+    }
+
+    world.roadLinesX = roadLinesX;
+    world.roadLinesZ = roadLinesZ;
+  }
+
+  function createTree() {
+    const group = new THREE.Group();
+
+    const trunkGeo = new THREE.CylinderGeometry(0.4, 0.4, 3, 8);
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: 0x4b5563,
+      roughness: 0.9,
+      metalness: 0.1
+    });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.y = 1.5;
+    group.add(trunk);
+
+    const crownGeo = new THREE.SphereGeometry(2.1, 16, 16);
+    const crownMat = new THREE.MeshStandardMaterial({
+      color: 0x22c55e,
+      emissive: 0x16a34a,
+      emissiveIntensity: 0.15,
+      metalness: 0.4,
+      roughness: 0.5
+    });
+    const crown = new THREE.Mesh(crownGeo, crownMat);
+    crown.position.y = 3.7;
+    group.add(crown);
+
+    return group;
+  }
+
+  function buildCars() {
+    const { citySize, roadWidth, carCount, roadLinesX, roadLinesZ } = world;
+    const half = citySize / 2;
+
+    const carColors = [0xf97316, 0xfacc15, 0x22c55e, 0x38bdf8, 0xa855f7, 0xf97373];
+
+    for (let i = 0; i < carCount; i++) {
+      const length = 4.8 + Math.random() * 1.5;
+      const height = 1.4 + Math.random() * 0.6;
+      const width = 2 + Math.random() * 0.8;
+
+      const bodyGeo = new THREE.BoxGeometry(length, height, width);
+      const color = carColors[Math.floor(Math.random() * carColors.length)];
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.9,
+        roughness: 0.25,
+        emissive: 0x1f2937,
+        emissiveIntensity: 0.3
+      });
+
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.castShadow = false;
+      body.receiveShadow = false;
+
+      // Небольшие "фары"
+      const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+      const headMat = new THREE.MeshStandardMaterial({
+        color: 0xfacc15,
+        emissive: 0xfbbf24,
+        emissiveIntensity: 1.5
+      });
+      const head1 = new THREE.Mesh(headGeo, headMat);
+      const head2 = new THREE.Mesh(headGeo, headMat);
+      head1.position.set(length * 0.5 + 0.2, 0.25, width * 0.25);
+      head2.position.set(length * 0.5 + 0.2, 0.25, -width * 0.25);
+      body.add(head1, head2);
+
+      cityGroup.add(body);
+
+      const useX = Math.random() < 0.5;
+      let axis, laneCoord, posAlong;
+      if (useX) {
+        axis = "x";
+        laneCoord = roadLinesZ[Math.floor(Math.random() * roadLinesZ.length)];
+        laneCoord += (Math.random() < 0.5 ? 1 : -1) * (roadWidth * 0.25);
+        posAlong = -half + Math.random() * citySize;
+        body.position.set(posAlong, height / 2 + 0.2, laneCoord);
+      } else {
+        axis = "z";
+        laneCoord = roadLinesX[Math.floor(Math.random() * roadLinesX.length)];
+        laneCoord += (Math.random() < 0.5 ? 1 : -1) * (roadWidth * 0.25);
+        posAlong = -half + Math.random() * citySize;
+        body.position.set(laneCoord, height / 2 + 0.2, posAlong);
+      }
+
+      const direction = Math.random() < 0.5 ? 1 : -1;
+      const speed = 16 + Math.random() * 18; // единиц в секунду
+
+      cars.push({
+        mesh: body,
+        axis,
+        laneCoord,
+        pos: posAlong,
+        speed,
+        direction
+      });
+    }
+  }
+
+  function initControls() {
+    ui.btnPlay.addEventListener("click", () => {
+      paused = false;
+      ui.statusLine.textContent = "Движение включено.";
+    });
+
+    ui.btnPause.addEventListener("click", () => {
+      paused = true;
+      ui.statusLine.textContent = "Пауза. Город заморожен.";
+    });
+
+    ui.btnSpeed1.addEventListener("click", () => setSpeed(1.0));
+    ui.btnSpeed2.addEventListener("click", () => setSpeed(2.0));
+    ui.btnSpeed4.addEventListener("click", () => setSpeed(4.0));
+
+    setSpeed(1.0);
+  }
+
+  function setSpeed(value) {
+    timeScale = value;
+    ui.chipSpeed.textContent = value.toFixed(1);
+    ui.statusLine.textContent = `Скорость симуляции ×${value.toFixed(1)}.`;
+  }
+
+  function loop(now) {
+    const dtMs = now - lastTime;
+    lastTime = now;
+    const dt = dtMs / 1000;
+
+    if (!paused) {
+      updateSimulation(dt * timeScale);
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  function updateSimulation(dt) {
+    updateCars(dt);
+    updateTime(dt);
+    updateLights();
+  }
+
+  function updateCars(dt) {
+    const { citySize } = world;
+    const half = citySize / 2;
+
+    for (const car of cars) {
+      car.pos += car.speed * car.direction * dt;
+
+      if (car.pos > half + 5) car.pos = -half - 5;
+      if (car.pos < -half - 5) car.pos = half + 5;
+
+      if (car.axis === "x") {
+        car.mesh.position.x = car.pos;
+        car.mesh.position.z = car.laneCoord;
+        car.mesh.rotation.y = car.direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+      } else {
+        car.mesh.position.z = car.pos;
+        car.mesh.position.x = car.laneCoord;
+        car.mesh.rotation.y = car.direction > 0 ? 0 : Math.PI;
+      }
+    }
+  }
+
+  function updateTime(dt) {
+    // 1 реальная секунда = 10 сим-минут при speed ×1
+    const minutesPerSecond = 10;
+    simClock.minutesTotal += dt * minutesPerSecond;
+
+    while (simClock.minutesTotal >= 24 * 60) {
+      simClock.minutesTotal -= 24 * 60;
+      simClock.dayIndex += 1;
+    }
+
+    const hours = Math.floor(simClock.minutesTotal / 60);
+    const minutes = Math.floor(simClock.minutesTotal % 60);
+    ui.timeLabel.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    ui.chipDay.textContent = "Day " + simClock.dayIndex;
+
+    const isDay = hours >= 6 && hours < 20;
+    ui.timeMode.textContent = isDay ? "DAY" : "NIGHT";
+    ui.timeMode.classList.toggle("day", isDay);
+    ui.timeMode.classList.toggle("night", !isDay);
+
+    const t = computeDayNightFactor(hours, minutes);
+    applyLightingFactor(t);
+  }
+
+  function computeDayNightFactor(hours, minutes) {
+    const totalMinutes = hours * 60 + minutes;
+    const sunriseStart = 5 * 60;
+    const sunriseEnd = 7 * 60;
+    const sunsetStart = 19 * 60;
+    const sunsetEnd = 21 * 60;
+
+    if (totalMinutes >= sunriseEnd && totalMinutes <= sunsetStart) {
+      return 1; // день
+    }
+    if (totalMinutes <= sunriseStart || totalMinutes >= sunsetEnd) {
+      return 0; // ночь
+    }
+
+    if (totalMinutes > sunriseStart && totalMinutes < sunriseEnd) {
+      return (totalMinutes - sunriseStart) / (sunriseEnd - sunriseStart);
+    }
+    if (totalMinutes > sunsetStart && totalMinutes < sunsetEnd) {
+      return 1 - (totalMinutes - sunsetStart) / (sunsetEnd - sunsetStart);
+    }
+    return 1;
+  }
+
+  function applyLightingFactor(dayFactor) {
+    const nightFactor = 1 - dayFactor;
+
+    lights.ambientDay.intensity = 0.85 * dayFactor;
+    lights.sunLight.intensity = 1.2 * dayFactor;
+    lights.sunLight.color.setHex(0xfff3d1);
+
+    lights.ambientNight.intensity = 0.35 * nightFactor;
+    lights.neonLight.intensity = 0.7 * nightFactor + 0.3;
+    lights.neonLight.color.setHex(0x60a5fa);
+
+    renderer.toneMappingExposure = 1.0 + nightFactor * 0.5;
+  }
+
+  function updateStatsUI() {
+    ui.statBuildings.textContent = buildings.length.toString();
+    ui.statCars.textContent = cars.length.toString();
+    ui.statTrees.textContent = trees.length.toString();
+  }
+
+  function onWindowResize() {
+    const container = document.getElementById("app-inner");
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  }
+</script>
+</body>
+</html>
 
